@@ -53,21 +53,22 @@
           unelevated
           :outline="completed ? false : true"
           :icon="completed ? 'check' : undefined"
-          @click="completed = !completed"
+          @click="toggleComplete"
         />
-        <q-input
-          v-model="memo"
-          type="textarea"
-          outlined
-          dense
-          placeholder="메모를 작성해주세요."
-          rows="3"
-          autogrow
-        />
+        <ClienOnly>
+          <q-input
+            v-model="memo"
+            type="textarea"
+            outlined
+            dense
+            placeholder="메모를 작성해주세요."
+            rows="3"
+            autogrow
+          />
+        </ClienOnly>
       </q-form>
 
       <template #footer>
-        <!-- <ClienOnly /> -->
         <q-btn
           v-if="prevCourse"
           label="이전 강의"
@@ -76,12 +77,14 @@
           :to="prevCourse.path"
           @click="movePage(prevCourse.path)"
         />
-        <q-btn
-          label="쿼리 추가"
-          color="dark"
-          unelevated
-          :to="{ path: $route.path, query: { timestamp: Date.now() } }"
-        />
+        <ClienOnly>
+          <q-btn
+            label="쿼리 추가"
+            color="dark"
+            unelevated
+            :to="{ path: $route.path, query: { timestamp: Date.now() } }"
+          />
+        </ClienOnly>
         <q-space />
         <q-btn
           v-if="nextCourse"
@@ -98,7 +101,16 @@
 <script setup lang="ts">
 const route = useRoute();
 const courseSlug = route.params.courseSlug as string;
-const { course, prevCourse, nextCourse } = useCourse(courseSlug);
+const { course, prevCourse, nextCourse } = (await useCourse(courseSlug)) || {};
+
+// if (!course) {
+//   throw createError({
+//     statusCode: 404,
+//     statusMessage: 'Course not found',
+//     // fatal: true,
+//   });
+// }
+
 console.log('[courseSlug].vue 컴포넌트 setup hooks');
 // const title = ref('');
 definePageMeta({
@@ -106,14 +118,38 @@ definePageMeta({
   // title: title.value,
   title: 'My home page', // 사용자 메타 데이터
   pageType: '',
-  keepalive: true,
+  // keepalive: true,
   alias: ['/lecture/:courseSlug'],
+  // validate: (route) => {
+  middleware: async (route) => {
+    const courseSlug = route.params.courseSlug as string;
+    const { course } = (await useCourse(courseSlug)) || {};
+    if (!course) {
+      // return navigateTo('/'); // home으로 리다이렉션
+      // return false;
+      return abortNavigation(
+        createError({
+          statusCode: 404,
+          statusMessage: 'Course not found',
+          // fatal: true,
+        }),
+      );
+    }
+    // return true;
+  },
 });
 const memo = ref('');
 const completed = ref(false);
 
 const movePage = async (path: string) => {
   await navigateTo(path);
+};
+
+const toggleComplete = () => {
+  // $fetch('/api/error');
+  // showError('에러가 발생했습니다.');
+  completed.value = !completed.value;
+  throw createError('에러가 발생했습니다.');
 };
 </script>
 
